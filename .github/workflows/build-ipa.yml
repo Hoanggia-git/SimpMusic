@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-ios:
-    runs-on: macos-14 # Sử dụng máy ảo macOS chạy chip Apple Silicon của GitHub
+    runs-on: macos-latest # Sử dụng máy ảo macOS chạy chip Apple Silicon của GitHub
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
