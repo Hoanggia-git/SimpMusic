@@ -12,15 +12,29 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Xóa các file trùng lặp cũ của iOS trong core
+      - name: Dọn dẹp và vá lỗi mã nguồn cho iOS
         run: |
-          # Xóa các thư mục thừa bị xung đột với iosMain
+          # 1. Xóa các thư mục trùng lặp cũ
           rm -rf core/service/ktorExt/src/iosArm64Main
           rm -rf core/service/ktorExt/src/iosSimulatorArm64Main
           rm -rf core/service/ktorExt/src/iosX64Main
           rm -rf core/data/src/iosArm64Main
           rm -rf core/data/src/iosSimulatorArm64Main
           rm -rf core/data/src/iosX64Main
+
+          # 2. Vá lỗi Dispatchers.IO -> Dispatchers.Default trong Resource.kt
+          sed -i '' 's/Dispatchers\.IO/Dispatchers\.Default/g' core/domain/src/commonMain/kotlin/com/maxrave/domain/utils/Resource.kt
+
+          # 3. Vá lỗi Okio AutoCloseable trong MessageCodec.kt
+          python3 -c '
+          file = "core/service/listenTogether/src/commonMain/kotlin/org/simpmusic/listentogether/MessageCodec.kt"
+          with open(file, "r") as f:
+              code = f.read()
+          code = code.replace("GzipSink(sink).buffer().use { it.write(data) }", "val g = GzipSink(sink).buffer()\n        g.write(data)\n        g.close()")
+          code = code.replace("GzipSource(Buffer().apply { write(data) }).buffer().use { it.readByteArray() }", "val g = GzipSource(Buffer().apply { write(data) }).buffer()\n            val r = g.readByteArray()\n            g.close()\n            r")
+          with open(file, "w") as f:
+              f.write(code)
+          '
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
