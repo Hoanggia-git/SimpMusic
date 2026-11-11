@@ -1,11 +1,11 @@
 name: Build SimpMusic iOS (.ipa)
 
 on:
-  workflow_dispatch: # Cho phép bạn bấm nút chạy thủ công bất cứ lúc nào
+  workflow_dispatch:
 
 jobs:
   build-ios:
-    runs-on: macos-latest # Sử dụng máy ảo macOS chạy chip Apple Silicon của GitHub
+    runs-on: macos-14
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,27 +21,30 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Biên dịch Kotlin Native Framework
-        run: ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode
+      - name: Cấp quyền thực thi cho Gradle
+        run: chmod +x ./gradlew
 
-      - name: Đóng gói ứng dụng thành file .ipa
+      - name: Biên dịch Kotlin Native Framework độc lập
+        run: ./gradlew :composeApp:linkDebugFrameworkIosArm64 --stacktrace
+
+      - name: Đóng gói thành file .ipa
         run: |
-          mkdir -p build/Payload
-          # Copy file app đã build sang thư mục Payload
-          FRAMEWORK_DIR=$(find . -name "ComposeApp.framework" -type d | head -n 1)
-          echo "Found Framework at $FRAMEWORK_DIR"
-          
-          # Tạo cấu trúc ứng dụng tối giản
           mkdir -p build/Payload/SimpMusic.app
-          cp -r iosApp/Info.plist build/Payload/SimpMusic.app/
+          # Tìm framework vừa build được
+          FRAMEWORK_DIR=$(find composeApp/build/bin/iosArm64 -name "ComposeApp.framework" -type d | head -n 1)
+          echo "Tìm thấy Framework tại: $FRAMEWORK_DIR"
           
-          # Đóng gói thành định dạng .ipa
+          # Đưa framework và cấu hình vào thư mục ứng dụng
+          cp -r "$FRAMEWORK_DIR" build/Payload/SimpMusic.app/
+          cp iosApp/Info.plist build/Payload/SimpMusic.app/
+          
+          # Nén thành file .ipa
           cd build
           zip -r SimpMusic.ipa Payload
 
       - name: Tải file .ipa lên Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: SimpMusic-iOS
+          name: SimpMusic-iOS-IPA
           path: build/SimpMusic.ipa
           retention-days: 7
