@@ -12,28 +12,53 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Dọn dẹp và vá lỗi mã nguồn cho iOS
+      - name: Quét và tự động vá toàn diện mọi lỗi iOS trong toàn bộ dự án
         run: |
-          # 1. Xóa các thư mục trùng lặp cũ
-          rm -rf core/service/ktorExt/src/iosArm64Main
-          rm -rf core/service/ktorExt/src/iosSimulatorArm64Main
-          rm -rf core/service/ktorExt/src/iosX64Main
-          rm -rf core/data/src/iosArm64Main
-          rm -rf core/data/src/iosSimulatorArm64Main
-          rm -rf core/data/src/iosX64Main
+          python3 -c '
+          import os, re
 
-          # 2. Vá lỗi Dispatchers.IO -> Dispatchers.Default trong Resource.kt
-          sed -i '' 's/Dispatchers\.IO/Dispatchers\.Default/g' core/domain/src/commonMain/kotlin/com/maxrave/domain/utils/Resource.kt
+          print("--- BẮT ĐẦU QUÉT VÀ VÁ TOÀN BỘ CODEBASE ---")
+
+          # 1. Xóa tất cả các thư mục kiến trúc cũ bị xung đột với iosMain
+          target_dirs = ["iosArm64Main", "iosSimulatorArm64Main", "iosX64Main"]
+          for root, dirs, files in os.walk(".", topdown=False):
+              for d in dirs:
+                  if d in target_dirs:
+                      full_path = os.path.join(root, d)
+                      print(f"Xóa thư mục trùng lặp: {full_path}")
+                      os.system(f"rm -rf \"{full_path}\"")
+
+          # 2. Quét tất cả file .kt để thay thế Dispatchers.IO thành Dispatchers.Default
+          for root, dirs, files in os.walk("."):
+              for file in files:
+                  if file.endswith(".kt"):
+                      filepath = os.path.join(root, file)
+                      with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
+                          content = f.read()
+                      if "Dispatchers.IO" in content:
+                          print(f"Vá Dispatchers.IO trong: {filepath}")
+                          content = content.replace("Dispatchers.IO", "Dispatchers.Default")
+                          with open(filepath, "w", encoding="utf-8") as f:
+                              f.write(content)
 
           # 3. Vá lỗi Okio AutoCloseable trong MessageCodec.kt
-          python3 -c '
-          file = "core/service/listenTogether/src/commonMain/kotlin/org/simpmusic/listentogether/MessageCodec.kt"
-          with open(file, "r") as f:
-              code = f.read()
-          code = code.replace("GzipSink(sink).buffer().use { it.write(data) }", "val g = GzipSink(sink).buffer()\n        g.write(data)\n        g.close()")
-          code = code.replace("GzipSource(Buffer().apply { write(data) }).buffer().use { it.readByteArray() }", "val g = GzipSource(Buffer().apply { write(data) }).buffer()\n            val r = g.readByteArray()\n            g.close()\n            r")
-          with open(file, "w") as f:
-              f.write(code)
+          codec_path = "core/service/listenTogether/src/commonMain/kotlin/org/simpmusic/listentogether/MessageCodec.kt"
+          if os.path.exists(codec_path):
+              print(f"Vá lỗi Okio trong: {codec_path}")
+              with open(codec_path, "r", encoding="utf-8") as f:
+                  code = f.read()
+              code = code.replace(
+                  "GzipSink(sink).buffer().use { it.write(data) }",
+                  "val g = GzipSink(sink).buffer()\n        g.write(data)\n        g.close()"
+              )
+              code = code.replace(
+                  "GzipSource(Buffer().apply { write(data) }).buffer().use { it.readByteArray() }",
+                  "val g = GzipSource(Buffer().apply { write(data) }).buffer()\n            val r = g.readByteArray()\n            g.close()\n            r"
+              )
+              with open(codec_path, "w", encoding="utf-8") as f:
+                  f.write(code)
+
+          print("--- HOÀN TẤT VÁ LỖI TỔNG THỂ ---")
           '
 
       - name: Setup Java 17
@@ -54,15 +79,12 @@ jobs:
       - name: Đóng gói thành file .ipa
         run: |
           mkdir -p build/Payload/SimpMusic.app
-          # Tìm framework vừa build được
           FRAMEWORK_DIR=$(find composeApp/build/bin/iosArm64 -name "ComposeApp.framework" -type d | head -n 1)
           echo "Tìm thấy Framework tại: $FRAMEWORK_DIR"
           
-          # Đưa framework và cấu hình vào thư mục ứng dụng
           cp -r "$FRAMEWORK_DIR" build/Payload/SimpMusic.app/
           cp iosApp/Info.plist build/Payload/SimpMusic.app/
           
-          # Nén thành file .ipa
           cd build
           zip -r SimpMusic.ipa Payload
 
