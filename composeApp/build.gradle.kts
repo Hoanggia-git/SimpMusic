@@ -115,7 +115,7 @@ kotlin {
             implementation(libs.compose.material3)
             implementation(libs.compose.ui)
             implementation(libs.components.resources)
-            implementation(libs.jetbrains.ui.tooling.preview)
+         //   implementation(libs.jetbrains.ui.tooling.preview)
             implementation(libs.androidx.lifecycle.viewmodelCompose)
             implementation(libs.androidx.lifecycle.runtimeCompose)
 
@@ -123,7 +123,7 @@ kotlin {
             implementation(libs.compose.material3.adaptive)
             implementation(libs.compose.material.ripple)
 
-            implementation(libs.ui.tooling.preview)
+         //   implementation(libs.ui.tooling.preview)
 
             // Other module
             api(projects.common)
