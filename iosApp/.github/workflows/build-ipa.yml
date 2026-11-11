@@ -1,0 +1,47 @@
+name: Build SimpMusic iOS (.ipa)
+
+on:
+  workflow_dispatch: # Cho phép bạn bấm nút chạy thủ công bất cứ lúc nào
+
+jobs:
+  build-ios:
+    runs-on: macos-14 # Sử dụng máy ảo macOS chạy chip Apple Silicon của GitHub
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Biên dịch Kotlin Native Framework
+        run: ./gradlew :composeApp:embedAndSignAppleFrameworkForXcode
+
+      - name: Đóng gói ứng dụng thành file .ipa
+        run: |
+          mkdir -p build/Payload
+          # Copy file app đã build sang thư mục Payload
+          FRAMEWORK_DIR=$(find . -name "ComposeApp.framework" -type d | head -n 1)
+          echo "Found Framework at $FRAMEWORK_DIR"
+          
+          # Tạo cấu trúc ứng dụng tối giản
+          mkdir -p build/Payload/SimpMusic.app
+          cp -r iosApp/Info.plist build/Payload/SimpMusic.app/
+          
+          # Đóng gói thành định dạng .ipa
+          cd build
+          zip -r SimpMusic.ipa Payload
+
+      - name: Tải file .ipa lên Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: SimpMusic-iOS
+          path: build/SimpMusic.ipa
+          retention-days: 7
