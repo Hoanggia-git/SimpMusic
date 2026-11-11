@@ -149,7 +149,7 @@ kotlin {
 
             // Coil
             api(libs.coil.compose)
-            api(libs.coil.network.okhttp)
+        //    api(libs.coil.network.okhttp)
             api(libs.kmpalette.core)
             api(libs.kmpalette.network)
             implementation(libs.materialkolor)
